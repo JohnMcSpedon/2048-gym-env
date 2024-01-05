@@ -5,6 +5,9 @@ description = "RL Gym Environment for training agents to play 2048"
 authors = ["JohnMcSpedon <john.p.mcspedon@gmail.com>"]
 license = "MIT"
 readme = "README.md"
+packages = [
+    { include = "gym_2048", from = "src" },
+]
 
 [tool.poetry.dependencies]
 python = "^3.11"
