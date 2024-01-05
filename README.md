@@ -31,7 +31,7 @@ To use the 2048 Gym environment in your Python project, you can follow this simp
 TODO TODO TODO: revisit this example
 
 ```python
-import gymnamsium as gym
+import gymnasium as gym
 import gym_2048
 
 # Create the environment
