@@ -1,0 +1,22 @@
+[tool.poetry]
+name = "2048-gym-env"
+version = "0.1.0"
+description = "RL Gym Environment for training agents to play 2048"
+authors = ["JohnMcSpedon <john.p.mcspedon@gmail.com>"]
+license = "MIT"
+readme = "README.md"
+packages = [
+    { include = "gym_2048", from = "src" },
+]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+gymnasium = "^0.29.1"
+numpy = "^1.26.3"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^7.4.4"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
