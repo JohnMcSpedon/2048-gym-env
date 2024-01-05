@@ -1,7 +1,9 @@
 from dataclasses import dataclass
+from typing import Any
 
 import gymnasium as gym
 import numpy as np
+from gymnasium.core import ObsType
 from gymnasium.utils import seeding
 
 from . import logic
@@ -36,12 +38,10 @@ class Env2048(gym.Env):
     action_space = gym.spaces.Discrete(4)  # up, down, left, right
     observation_space = gym.spaces.Space(shape=[4, 4], dtype=np.uint8)
 
-    def __init__(self, reward_config: RewardConfig, seed=None):
+    def __init__(self, reward_config: RewardConfig):
         super(Env2048, self).__init__()
-        self.seed(seed=seed)
         self.reward_cfg = reward_config
         self.reset()
-        self._grid_seed = None
 
     def step(self, action):
         """Run one timestep of the environment's dynamics. When end of
@@ -79,17 +79,17 @@ class Env2048(gym.Env):
         info[INFO_KEY_TOTAL_SCORE] = self._grid.score
         return self._grid.tiles, reward, done, info
 
-    def reset(self):
+    def reset(self, seed: int | None = None, options: dict[str, Any] = None) -> tuple[ObsType, dict[str, Any]]:
         """Resets the state of the environment and returns an initial observation.
         Returns:
             observation (object): the initial observation.
         """
-        seed = self.np_random.randint(0, 2 ** 32, dtype=np.uint32)
-        self._grid = logic.Grid(seed)
-        self._grid_seed = seed
+        super().reset(seed=seed)
+        self._grid = logic.Grid()
         # add 2 initial tiles
         for _ in range(2):
             self._grid.add_tile(log_val_tile=1)
+        # TODO: ret val
 
     def render(self, mode="ansi"):
         """Renders the environment.
@@ -126,20 +126,3 @@ class Env2048(gym.Env):
             print(f"score: {self._grid.score}")
         else:
             super(Env2048, self).render(mode=mode)
-
-    def seed(self, seed=None):
-        """Sets the seed for this env's random number generator(s).
-        Note:
-            Some environments use multiple pseudorandom number generators.
-            We want to capture all such seeds used in order to ensure that
-            there aren't accidental correlations between multiple generators.
-        Returns:
-            list<bigint>: Returns the list of seeds used in this env's random
-              number generators. The first value in the list should be the
-              "main" seed, or the value which a reproducer should pass to
-              'seed'. Often, the main seed equals the provided 'seed', but
-              this won't be true if seed=None, for example.
-        """
-        # TODO: pass this into grid class somehow?
-        self.np_random, seed = seeding.np_random(seed)
-        return [seed]
