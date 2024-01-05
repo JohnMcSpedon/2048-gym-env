@@ -1,6 +1,6 @@
 import random
 
-import logic
+from . import logic
 
 KEY_TO_MOVE = {
     "w": logic.Move.UP,

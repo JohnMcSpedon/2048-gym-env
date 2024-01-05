@@ -4,7 +4,7 @@ import gymnasium as gym
 import numpy as np
 from gymnasium.utils import seeding
 
-import logic
+from . import logic
 
 INFO_KEY_GRID_SEED = "grid_seed"
 INFO_KEY_GAME_OVER_REASON = "game_over_reason"
