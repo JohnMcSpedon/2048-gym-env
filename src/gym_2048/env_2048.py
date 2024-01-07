@@ -67,7 +67,7 @@ class Env2048(gym.Env):
         truncated = False
         if len(valid_moves) == 0:
             reward = self.reward_cfg.game_over_penalty
-            terminated = True  # TODO: should this have been done in a previus session?
+            terminated = True  # TODO: should this have been done in a previous session?
             info[INFO_KEY_GAME_OVER_REASON] = NO_VALID_MOVES
         elif action not in valid_moves:
             # NOTE: choosing to end the game when an illegal move is taken
