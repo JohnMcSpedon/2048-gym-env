@@ -20,13 +20,15 @@ NUM_ACTIONS = len(Move)
 
 
 def _compress_tiles(tiles: np.ndarray) -> np.ndarray:
-    """Push all tiles left. (leaving all empty tiles on the right)."""
-    # TODO: vectorize over rows
-    for row in tiles:
-        nonempty = row[row != 0]
-        row[: len(nonempty)] = nonempty
-        row[len(nonempty) :] = 0
-    return tiles
+    """Push all tiles left (leaving all empty tiles on the right)"""
+    # Create a mask of non-zero elements
+    nonzero_mask = tiles != 0
+    # Sort the mask in descending order along rows; True (non-zero) values will come first
+    sorted_mask = np.sort(nonzero_mask, axis=1)[:, ::-1]
+    # Apply the sorted mask to the tiles
+    compressed_tiles = np.zeros_like(tiles)
+    compressed_tiles[sorted_mask] = tiles[nonzero_mask]
+    return compressed_tiles
 
 
 _TWO_EXP = {n: int(2 ** n) for n in range(20)}

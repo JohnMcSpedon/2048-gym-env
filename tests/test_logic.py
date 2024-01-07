@@ -18,6 +18,8 @@ def test_compress_tiles():
         ([1, 0, 1], [1, 1, 0]),
         ([0, 1, 1], [1, 1, 0]),
         ([1, 1, 1], [1, 1, 1]),
+        ([2, 2, 2], [2, 2, 2]),
+        ([0, 2, 3], [2, 3, 0]),
     ]:
         output = logic._compress_tiles(np.array([input]))
         assert np.array_equal(output, np.array([expected]))
