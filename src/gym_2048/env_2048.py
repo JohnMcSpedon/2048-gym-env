@@ -1,10 +1,9 @@
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, SupportsFloat
 
 import gymnasium as gym
 import numpy as np
-from gymnasium.core import ObsType
-from gymnasium.utils import seeding
+from gymnasium.core import ActType, ObsType
 
 from . import logic
 
@@ -43,30 +42,34 @@ class Env2048(gym.Env):
         self.reward_cfg = reward_config
         self.reset()
 
-    def step(self, action):
-        """Run one timestep of the environment's dynamics. When end of
-        episode is reached, you are responsible for calling `reset()`
-        to reset this environment's state.
-        Accepts an action and returns a tuple (observation, reward, done, info).
+    def step(self, action: ActType) -> tuple[ObsType, SupportsFloat, bool, bool, dict[str, Any]]:
+        """Run one timestep of the environment’s dynamics using the agent actions.
+
+        When the end of an episode is reached (terminated or truncated), it is necessary to call reset() to reset this
+        environment’s state for the next episode.
+
         Args:
-            action (object): an action provided by the agent
+            action (ActType) – an action provided by the agent to update the environment state.
         Returns:
-            observation (object): agent's observation of the current environment
+            observation (ObsType): An element of the environment’s observation_space as the next observation due to the
+                agent actions.  For 2048, this is the tiles
             reward (float) : amount of reward returned after previous action
-            done (bool): whether the episode has ended, in which case further step() calls will return undefined results
+            terminated (bool): whether the agent reaches the terminal state (e.g. game is finished).
+            truncated (bool): whether the truncation condition outside the scope of the MDP is satisfied
             info (dict): contains auxiliary diagnostic information (helpful for debugging, and sometimes learning)
         """
         valid_moves = [mv.value for mv in self._grid.get_valid_moves()]
-        info = {INFO_KEY_GRID_SEED: int(self._grid_seed)}
+        info = {}
 
+        truncated = False
         if len(valid_moves) == 0:
             reward = self.reward_cfg.game_over_penalty
-            done = True  # TODO: should this have been done in a previus session?
+            terminated = True  # TODO: should this have been done in a previus session?
             info[INFO_KEY_GAME_OVER_REASON] = NO_VALID_MOVES
         elif action not in valid_moves:
             # NOTE: choosing to end the game when an illegal move is taken
             reward = self.reward_cfg.illegal_move_penalty
-            done = True
+            terminated = False
             info[INFO_KEY_GAME_OVER_REASON] = ILLEGAL_MOVE_CHOSEN
         else:
             prev_score = self._grid.score
@@ -74,10 +77,10 @@ class Env2048(gym.Env):
             delta_score = self._grid.score - prev_score
             reward = self.reward_cfg.lambda_step_reward + self.reward_cfg.lambda_score_reward * delta_score
             info[INFO_KEY_DELTA_SCORE] = delta_score
-            done = False
+            terminated = False
 
         info[INFO_KEY_TOTAL_SCORE] = self._grid.score
-        return self._grid.tiles, reward, done, info
+        return self._grid.tiles, reward, terminated, truncated, info
 
     def reset(self, seed: int | None = None, options: dict[str, Any] = None) -> tuple[ObsType, dict[str, Any]]:
         """Resets the state of the environment and returns an initial observation.
@@ -89,7 +92,9 @@ class Env2048(gym.Env):
         # add 2 initial tiles
         for _ in range(2):
             self._grid.add_tile(log_val_tile=1)
-        # TODO: ret val
+
+        info = {INFO_KEY_GRID_SEED: int(self._grid_seed)}
+        return self._grid.tiles, info
 
     def render(self, mode="ansi"):
         """Renders the environment.
