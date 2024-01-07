@@ -1,3 +1,4 @@
+import logging
 from dataclasses import dataclass
 from typing import Any, SupportsFloat
 
@@ -66,8 +67,9 @@ class Env2048(gym.Env):
 
         truncated = False
         if len(valid_moves) == 0:
+            logging.warning("No valid moves before action taken. This should've been caught previous step.")
             reward = self.reward_cfg.game_over_penalty
-            terminated = True  # TODO: should this have been done in a previous session?
+            terminated = True
             info[INFO_KEY_GAME_OVER_REASON] = NO_VALID_MOVES
         elif action not in valid_moves:
             # NOTE: choosing to end the game when an illegal move is taken
@@ -81,6 +83,12 @@ class Env2048(gym.Env):
             reward = self.reward_cfg.lambda_step_reward + self.reward_cfg.lambda_score_reward * delta_score
             info[INFO_KEY_DELTA_SCORE] = delta_score
             terminated = False
+
+        valid_moves = [mv.value for mv in self._grid.get_valid_moves()]
+        if len(valid_moves) == 0:
+            reward += self.reward_cfg.game_over_penalty
+            terminated = True
+            info[INFO_KEY_GAME_OVER_REASON] = NO_VALID_MOVES
 
         info[INFO_KEY_TOTAL_SCORE] = self._grid.score
         return self._grid.tiles, reward, terminated, truncated, info
