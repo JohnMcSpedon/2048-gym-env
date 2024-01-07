@@ -31,15 +31,18 @@ class Env2048(gym.Env):
         observation_space: The Space object corresponding to valid observations
         reward_range: A tuple corresponding to the min and max possible rewards
     """
-    metadata = {"render.modes": ["ansi"]}  # TODO: implement this
+    metadata = {"render.modes": ["ansi"]}  # TODO: implement rgb_array, human
     reward_range = (-float("inf"), float("inf"))  # TODO: narrow this range?
 
     action_space = gym.spaces.Discrete(4)  # up, down, left, right
     observation_space = gym.spaces.Space(shape=[4, 4], dtype=np.uint8)
 
-    def __init__(self, reward_config: RewardConfig):
+    def __init__(self, reward_config: RewardConfig, render_mode: str):
         super(Env2048, self).__init__()
         self.reward_cfg = reward_config
+        if render_mode != "ansi":
+            raise NotImplementedError(f"Haven't implemented render mode {render_mode}")
+        self.render_mode = render_mode
         self.reset()
 
     def step(self, action: ActType) -> tuple[ObsType, SupportsFloat, bool, bool, dict[str, Any]]:
@@ -96,7 +99,7 @@ class Env2048(gym.Env):
         info = {INFO_KEY_GRID_SEED: int(self._grid_seed)}
         return self._grid.tiles, info
 
-    def render(self, mode="ansi"):
+    def render(self):
         """Renders the environment.
         The set of supported modes varies per environment. (And some
         environments do not support rendering at all.) By convention,
@@ -109,14 +112,6 @@ class Env2048(gym.Env):
         - ansi: Return a string (str) or StringIO.StringIO containing a
           terminal-style text representation. The text can include newlines
           and ANSI escape sequences (e.g. for colors).
-        Note:
-            Make sure that your class's metadata 'render.modes' key includes
-              the list of supported modes. It's recommended to call super()
-              in implementations to use the functionality of this method.
-        Args:
-            mode (str): the mode to render with
-        Example:
-        class MyEnv(Env):
             metadata = {'render.modes': ['human', 'rgb_array']}
             def render(self, mode='human'):
                 if mode == 'rgb_array':
@@ -126,8 +121,8 @@ class Env2048(gym.Env):
                 else:
                     super(MyEnv, self).render(mode=mode) # just raise an exception
         """
-        if mode == "ansi":
+        if self.render_mode == "ansi":
             print(self._grid.tiles)
             print(f"score: {self._grid.score}")
         else:
-            super(Env2048, self).render(mode=mode)
+            super(Env2048, self).render()
