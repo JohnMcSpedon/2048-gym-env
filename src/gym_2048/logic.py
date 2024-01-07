@@ -91,14 +91,10 @@ class Grid:
     Empty tiles are represented with 0.  Otherwise a tiles value is stored as log base 2.
     """
 
-    def __init__(self, random_seed=None):
+    def __init__(self):
         # TODO: accept tiles as an init argument.  factor above methods into this class?
         self.tiles = np.zeros([GRID_HEIGHT, GRID_WIDTH], dtype=np.uint8)
         self.score = 0
-
-        if random_seed is not None:
-            logging.debug(f"Setting random seed to {random_seed}")
-            np.random.seed(random_seed)
 
     def _replay_moves(self, moves):
         # TODO: add ability to replay game up to certain state?
