@@ -20,7 +20,7 @@ NUM_ACTIONS = len(Move)
 
 
 def _compress_tiles(tiles: np.ndarray) -> np.ndarray:
-    """Push all tiles left. (leaving all empty tiles on the right). """
+    """Push all tiles left. (leaving all empty tiles on the right)."""
     # TODO: vectorize over rows
     for row in tiles:
         nonempty = row[row != 0]
