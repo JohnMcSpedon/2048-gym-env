@@ -10,15 +10,15 @@ packages = [
 ]
 
 [tool.poetry.dependencies]
-python = "^3.11"
+python = "^3.10"
 gymnasium = "^0.29.1"
-numpy = "^1.26.3"
+numpy = "^1.26.2"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^7.4.4"
 
-[tool.poetry.plugins."gymnasium.envs"]
-"Gym2048-v0" = "gym_2048.env:Env2048"
+#[tool.poetry.plugins."gymnasium.envs"]
+#"Gym2048-v0" = "gym_2048.env:Env2048"
 
 [build-system]
 requires = ["poetry-core"]
