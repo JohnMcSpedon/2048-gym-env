@@ -38,8 +38,10 @@ class Env2048(gym.Env):
     action_space = gym.spaces.Discrete(4)  # up, down, left, right
     observation_space = gym.spaces.Space(shape=[4, 4], dtype=np.uint8)
 
-    def __init__(self, reward_config: RewardConfig, render_mode: str):
+    def __init__(self, render_mode: str, reward_config: RewardConfig = None):
         super(Env2048, self).__init__()
+        if reward_config is None:
+            reward_config = RewardConfig()
         self.reward_cfg = reward_config
         if render_mode != "ansi":
             raise NotImplementedError(f"Haven't implemented render mode {render_mode}")
@@ -104,7 +106,9 @@ class Env2048(gym.Env):
         for _ in range(2):
             self._grid.add_tile(log_val_tile=1)
 
-        info = {INFO_KEY_GRID_SEED: int(self._grid_seed)}
+        info = {}
+        if seed is not None:
+            info[INFO_KEY_GRID_SEED] = seed
         return self._grid.tiles, info
 
     def render(self):
