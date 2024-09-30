@@ -18,39 +18,40 @@ INFO_KEY_TOTAL_SCORE = "total_score"
 NO_VALID_MOVES = "no_valid_moves"
 ILLEGAL_MOVE_CHOSEN = "illegal_move_chosen"
 
+
 def hex_to_rgb(hex_color):
     """Convert hex color string to RGB tuple."""
-    hex_color = hex_color.lstrip('#')
-    return tuple(int(hex_color[i:i+2], 16) for i in (0, 2, 4))
+    hex_color = hex_color.lstrip("#")
+    return tuple(int(hex_color[i : i + 2], 16) for i in (0, 2, 4))
 
 
 BACKGROUND_COLOR_GAME = hex_to_rgb("#92877d")
 BACKGROUND_COLOR_CELL_EMPTY = hex_to_rgb("#9e948a")
 BACKGROUND_COLOR_DICT = {
-   2: hex_to_rgb("#eee4da"),
-   4: hex_to_rgb("#ede0c8"),
-   8: hex_to_rgb("#f2b179"),
-   16: hex_to_rgb("#f59563"),
-   32: hex_to_rgb("#f67c5f"),
-   64: hex_to_rgb("#f65e3b"),
-   128: hex_to_rgb("#edcf72"),
-   256: hex_to_rgb("#edcc61"),
-   512: hex_to_rgb("#edc850"),
-   1024: hex_to_rgb("#edc53f"),
-   2048: hex_to_rgb("#edc22e"),
+    2: hex_to_rgb("#eee4da"),
+    4: hex_to_rgb("#ede0c8"),
+    8: hex_to_rgb("#f2b179"),
+    16: hex_to_rgb("#f59563"),
+    32: hex_to_rgb("#f67c5f"),
+    64: hex_to_rgb("#f65e3b"),
+    128: hex_to_rgb("#edcf72"),
+    256: hex_to_rgb("#edcc61"),
+    512: hex_to_rgb("#edc850"),
+    1024: hex_to_rgb("#edc53f"),
+    2048: hex_to_rgb("#edc22e"),
 }
 CELL_COLOR_DICT = {
-   2: hex_to_rgb("#776e65"),
-   4: hex_to_rgb("#776e65"),
-   8: hex_to_rgb("#f9f6f2"),
-   16: hex_to_rgb("#f9f6f2"),
-   32: hex_to_rgb("#f9f6f2"),
-   64: hex_to_rgb("#f9f6f2"),
-   128: hex_to_rgb("#f9f6f2"),
-   256: hex_to_rgb("#f9f6f2"),
-   512: hex_to_rgb("#f9f6f2"),
-   1024: hex_to_rgb("#f9f6f2"),
-   2048: hex_to_rgb("#f9f6f2"),
+    2: hex_to_rgb("#776e65"),
+    4: hex_to_rgb("#776e65"),
+    8: hex_to_rgb("#f9f6f2"),
+    16: hex_to_rgb("#f9f6f2"),
+    32: hex_to_rgb("#f9f6f2"),
+    64: hex_to_rgb("#f9f6f2"),
+    128: hex_to_rgb("#f9f6f2"),
+    256: hex_to_rgb("#f9f6f2"),
+    512: hex_to_rgb("#f9f6f2"),
+    1024: hex_to_rgb("#f9f6f2"),
+    2048: hex_to_rgb("#f9f6f2"),
 }
 FONT_SIZE = 40
 try:
@@ -58,6 +59,7 @@ try:
 except IOError:
     print("loading verdana failed")
     FONT = ImageFont.load_default()
+
 
 @dataclass
 class RewardConfig:
@@ -154,7 +156,7 @@ class Env2048(gym.Env):
         elif self.render_mode in ["human", "rgb_array"]:
             tile_size = 100
             grid_size = tile_size * self._grid.tiles.shape[0]
-            image = Image.new('RGB', (grid_size, grid_size), BACKGROUND_COLOR_GAME)
+            image = Image.new("RGB", (grid_size, grid_size), BACKGROUND_COLOR_GAME)
             draw = ImageDraw.Draw(image)
 
             for i in range(self._grid.tiles.shape[0]):
