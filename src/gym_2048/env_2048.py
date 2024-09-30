@@ -5,6 +5,8 @@ from typing import Any, SupportsFloat
 import gymnasium as gym
 import numpy as np
 from gymnasium.core import ActType, ObsType
+import numpy as np
+from PIL import Image, ImageDraw, ImageFont
 
 from . import logic
 
@@ -16,6 +18,46 @@ INFO_KEY_TOTAL_SCORE = "total_score"
 NO_VALID_MOVES = "no_valid_moves"
 ILLEGAL_MOVE_CHOSEN = "illegal_move_chosen"
 
+def hex_to_rgb(hex_color):
+    """Convert hex color string to RGB tuple."""
+    hex_color = hex_color.lstrip('#')
+    return tuple(int(hex_color[i:i+2], 16) for i in (0, 2, 4))
+
+
+BACKGROUND_COLOR_GAME = hex_to_rgb("#92877d")
+BACKGROUND_COLOR_CELL_EMPTY = hex_to_rgb("#9e948a")
+BACKGROUND_COLOR_DICT = {
+   2: hex_to_rgb("#eee4da"),
+   4: hex_to_rgb("#ede0c8"),
+   8: hex_to_rgb("#f2b179"),
+   16: hex_to_rgb("#f59563"),
+   32: hex_to_rgb("#f67c5f"),
+   64: hex_to_rgb("#f65e3b"),
+   128: hex_to_rgb("#edcf72"),
+   256: hex_to_rgb("#edcc61"),
+   512: hex_to_rgb("#edc850"),
+   1024: hex_to_rgb("#edc53f"),
+   2048: hex_to_rgb("#edc22e"),
+}
+CELL_COLOR_DICT = {
+   2: hex_to_rgb("#776e65"),
+   4: hex_to_rgb("#776e65"),
+   8: hex_to_rgb("#f9f6f2"),
+   16: hex_to_rgb("#f9f6f2"),
+   32: hex_to_rgb("#f9f6f2"),
+   64: hex_to_rgb("#f9f6f2"),
+   128: hex_to_rgb("#f9f6f2"),
+   256: hex_to_rgb("#f9f6f2"),
+   512: hex_to_rgb("#f9f6f2"),
+   1024: hex_to_rgb("#f9f6f2"),
+   2048: hex_to_rgb("#f9f6f2"),
+}
+FONT_SIZE = 40
+try:
+    FONT = ImageFont.truetype("Verdana.ttf", FONT_SIZE)  # second value is font size
+except IOError:
+    print("loading verdana failed")
+    FONT = ImageFont.load_default()
 
 @dataclass
 class RewardConfig:
@@ -32,7 +74,7 @@ class Env2048(gym.Env):
         observation_space: The Space object corresponding to valid observations
         reward_range: A tuple corresponding to the min and max possible rewards
     """
-    metadata = {"render.modes": ["ansi"]}  # TODO: implement rgb_array, human
+    metadata = {"render.modes": ["ansi", "human", "rgb_array"]}
     reward_range = (-float("inf"), float("inf"))  # TODO: narrow this range?
 
     action_space = gym.spaces.Discrete(4)  # up, down, left, right
@@ -41,8 +83,6 @@ class Env2048(gym.Env):
     def __init__(self, reward_config: RewardConfig, render_mode: str):
         super(Env2048, self).__init__()
         self.reward_cfg = reward_config
-        if render_mode != "ansi":
-            raise NotImplementedError(f"Haven't implemented render mode {render_mode}")
         self.render_mode = render_mode
         self.reset()
 
@@ -104,33 +144,57 @@ class Env2048(gym.Env):
         for _ in range(2):
             self._grid.add_tile(log_val_tile=1)
 
-        info = {INFO_KEY_GRID_SEED: int(self._grid_seed)}
+        info = {INFO_KEY_GRID_SEED: seed}
         return self._grid.tiles, info
 
     def render(self):
-        """Renders the environment.
-        The set of supported modes varies per environment. (And some
-        environments do not support rendering at all.) By convention,
-        if mode is:
-        - human: render to the current display or terminal and
-          return nothing. Usually for human consumption.
-        - rgb_array: Return an numpy.ndarray with shape (x, y, 3),
-          representing RGB values for an x-by-y pixel image, suitable
-          for turning into a video.
-        - ansi: Return a string (str) or StringIO.StringIO containing a
-          terminal-style text representation. The text can include newlines
-          and ANSI escape sequences (e.g. for colors).
-            metadata = {'render.modes': ['human', 'rgb_array']}
-            def render(self, mode='human'):
-                if mode == 'rgb_array':
-                    return np.array(...) # return RGB frame suitable for video
-                elif mode == 'human':
-                    ... # pop up a window and render
-                else:
-                    super(MyEnv, self).render(mode=mode) # just raise an exception
-        """
         if self.render_mode == "ansi":
             print(self._grid.tiles)
             print(f"score: {self._grid.score}")
+        elif self.render_mode in ["human", "rgb_array"]:
+            tile_size = 100
+            grid_size = tile_size * self._grid.tiles.shape[0]
+            image = Image.new('RGB', (grid_size, grid_size), BACKGROUND_COLOR_GAME)
+            draw = ImageDraw.Draw(image)
+
+            for i in range(self._grid.tiles.shape[0]):
+                for j in range(self._grid.tiles.shape[1]):
+                    value = self._grid.tiles[i][j]
+                    x = j * tile_size
+                    y = i * tile_size
+                    rect = [x + 5, y + 5, x + tile_size - 5, y + tile_size - 5]
+
+                    # Get tile background color
+                    if value == 0:
+                        color = BACKGROUND_COLOR_CELL_EMPTY
+                    else:
+                        number = 2 ** value
+                        color = BACKGROUND_COLOR_DICT.get(number, "#3c3a32")
+
+                    # Draw tile
+                    draw.rectangle(rect, fill=color, outline=BACKGROUND_COLOR_GAME)
+
+                    # Draw number
+                    if value != 0:
+                        number = 2 ** value
+                        text = str(number)
+                        text_color = CELL_COLOR_DICT[number]
+                        # Adjust font size based on number length
+                        text_length = draw.textlength(text, font=FONT)
+                        text_x = x + (tile_size - text_length) / 2
+                        text_y = y + (tile_size - FONT_SIZE) / 2
+                        draw.text((text_x, text_y), text, fill=text_color)
+
+            if self.render_mode == "human":
+                image.show()
+            else:
+                return np.array(image)
         else:
             super(Env2048, self).render()
+
+
+if __name__ == "__main__":
+    reward_config = RewardConfig()
+    env_2048 = Env2048(reward_config, "human")
+    env_2048.reset(12345)
+    env_2048.render()
