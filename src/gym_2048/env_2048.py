@@ -191,10 +191,3 @@ class Env2048(gym.Env):
                 return np.array(image)
         else:
             super(Env2048, self).render()
-
-
-if __name__ == "__main__":
-    reward_config = RewardConfig()
-    env_2048 = Env2048(reward_config, "human")
-    env_2048.reset(12345)
-    env_2048.render()
