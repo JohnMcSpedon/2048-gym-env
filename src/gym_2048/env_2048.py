@@ -66,12 +66,12 @@ except IOError:
 class RewardConfig:
     lambda_step_reward: float = 0.0
     lambda_score_reward: float = 1.0
-    illegal_move_penalty: float = 0.0
+    illegal_move_penalty: float = -10.0  # Small penalty to discourage illegal moves
     game_over_penalty: float = 0.0
-    # Bonus rewards for achieving high tiles
-    tile_bonus_512: float = 50.0
-    tile_bonus_1024: float = 200.0
-    tile_bonus_2048: float = 1000.0
+    # Bonus rewards for achieving high tiles (scaled to game scores)
+    tile_bonus_512: float = 1000.0   # ~20% of typical score at 512
+    tile_bonus_1024: float = 5000.0  # ~25% of typical score at 1024
+    tile_bonus_2048: float = 20000.0 # ~100% of typical score at 2048
 
 
 class Env2048(gym.Env):
