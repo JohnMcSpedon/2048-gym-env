@@ -66,7 +66,7 @@ except IOError:
 class RewardConfig:
     lambda_step_reward: float = 0.0
     lambda_score_reward: float = 1.0
-    illegal_move_penalty: float = -10.0  # Small penalty to discourage illegal moves
+    illegal_move_penalty: float = 0.0  # No penalty - let Q-learning handle it
     game_over_penalty: float = 0.0
     # Bonus rewards for achieving high tiles (scaled to game scores)
     tile_bonus_512: float = 1000.0   # ~20% of typical score at 512
