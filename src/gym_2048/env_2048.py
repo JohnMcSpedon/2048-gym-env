@@ -14,6 +14,7 @@ INFO_KEY_GRID_SEED = "grid_seed"
 INFO_KEY_GAME_OVER_REASON = "game_over_reason"
 INFO_KEY_DELTA_SCORE = "delta_score"
 INFO_KEY_TOTAL_SCORE = "total_score"
+INFO_KEY_MAX_TILE = "max_tile"
 
 NO_VALID_MOVES = "no_valid_moves"
 ILLEGAL_MOVE_CHOSEN = "illegal_move_chosen"
@@ -63,10 +64,14 @@ except IOError:
 
 @dataclass
 class RewardConfig:
-    lambda_step_reward: float = 1.0
+    lambda_step_reward: float = 0.0
     lambda_score_reward: float = 1.0
-    illegal_move_penalty: float = -10
-    game_over_penalty: float = -5
+    illegal_move_penalty: float = 0.0
+    game_over_penalty: float = 0.0
+    # Bonus rewards for achieving high tiles
+    tile_bonus_512: float = 50.0
+    tile_bonus_1024: float = 200.0
+    tile_bonus_2048: float = 1000.0
 
 
 class Env2048(gym.Env):
@@ -86,6 +91,7 @@ class Env2048(gym.Env):
         super(Env2048, self).__init__()
         self.reward_cfg = reward_config
         self.render_mode = render_mode
+        self.achieved_tiles = set()  # Track tiles achieved this episode
         self.reset()
 
     def step(self, action: ActType) -> tuple[ObsType, SupportsFloat, bool, bool, dict[str, Any]]:
@@ -114,16 +120,29 @@ class Env2048(gym.Env):
             terminated = True
             info[INFO_KEY_GAME_OVER_REASON] = NO_VALID_MOVES
         elif action not in valid_moves:
-            # NOTE: choosing to end the game when an illegal move is taken
+            # Illegal move - no state change, small negative reward
             reward = self.reward_cfg.illegal_move_penalty
             terminated = False
             info[INFO_KEY_GAME_OVER_REASON] = ILLEGAL_MOVE_CHOSEN
+            info[INFO_KEY_DELTA_SCORE] = 0
         else:
             prev_score = self._grid.score
             self._grid.apply_move(logic.Move(action))
             delta_score = self._grid.score - prev_score
             reward = self.reward_cfg.lambda_step_reward + self.reward_cfg.lambda_score_reward * delta_score
             info[INFO_KEY_DELTA_SCORE] = delta_score
+
+            # Check for new high tiles and give bonuses
+            max_tile = np.max(self._grid.tiles)
+            if max_tile >= 9 and max_tile not in self.achieved_tiles:  # 9 = log2(512)
+                self.achieved_tiles.add(max_tile)
+                if max_tile == 9:  # 512
+                    reward += self.reward_cfg.tile_bonus_512
+                elif max_tile == 10:  # 1024
+                    reward += self.reward_cfg.tile_bonus_1024
+                elif max_tile == 11:  # 2048
+                    reward += self.reward_cfg.tile_bonus_2048
+
             terminated = False
 
         valid_moves = [mv.value for mv in self._grid.get_valid_moves()]
@@ -133,6 +152,7 @@ class Env2048(gym.Env):
             info[INFO_KEY_GAME_OVER_REASON] = NO_VALID_MOVES
 
         info[INFO_KEY_TOTAL_SCORE] = self._grid.score
+        info[INFO_KEY_MAX_TILE] = int(2 ** np.max(self._grid.tiles)) if np.max(self._grid.tiles) > 0 else 0
         return self._grid.tiles, reward, terminated, truncated, info
 
     def reset(self, seed: int | None = None, options: dict[str, Any] = None) -> tuple[ObsType, dict[str, Any]]:
@@ -142,6 +162,7 @@ class Env2048(gym.Env):
         """
         super().reset(seed=seed)
         self._grid = logic.Grid()
+        self.achieved_tiles = set()  # Reset achieved tiles
         # add 2 initial tiles
         for _ in range(2):
             self._grid.add_tile(log_val_tile=1)
