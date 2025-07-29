@@ -85,7 +85,7 @@ class Env2048(gym.Env):
     reward_range = (-float("inf"), float("inf"))  # TODO: narrow this range?
 
     action_space = gym.spaces.Discrete(4)  # up, down, left, right
-    observation_space = gym.spaces.Space(shape=[4, 4], dtype=np.uint8)
+    observation_space = gym.spaces.Box(low=0, high=17, shape=(4, 4), dtype=np.uint8)
 
     def __init__(self, reward_config: RewardConfig, render_mode: str):
         super(Env2048, self).__init__()
