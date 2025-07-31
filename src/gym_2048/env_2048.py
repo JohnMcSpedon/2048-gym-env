@@ -81,13 +81,13 @@ class Env2048(gym.Env):
         observation_space: The Space object corresponding to valid observations
         reward_range: A tuple corresponding to the min and max possible rewards
     """
-    metadata = {"render.modes": ["ansi", "human", "rgb_array"]}
+    metadata = {"render_modes": ["ansi", "human", "rgb_array"], "render_fps": 4}
     reward_range = (-float("inf"), float("inf"))  # TODO: narrow this range?
 
     action_space = gym.spaces.Discrete(4)  # up, down, left, right
     observation_space = gym.spaces.Box(low=0, high=17, shape=(4, 4), dtype=np.uint8)
 
-    def __init__(self, reward_config: RewardConfig, render_mode: str):
+    def __init__(self, reward_config: RewardConfig, render_mode: str = None):
         super(Env2048, self).__init__()
         self.reward_cfg = reward_config
         self.render_mode = render_mode
