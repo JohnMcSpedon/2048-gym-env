@@ -15,6 +15,7 @@ INFO_KEY_GAME_OVER_REASON = "game_over_reason"
 INFO_KEY_DELTA_SCORE = "delta_score"
 INFO_KEY_TOTAL_SCORE = "total_score"
 INFO_KEY_MAX_TILE = "max_tile"
+INFO_KEY_VALID_MOVES = "valid_moves"
 
 NO_VALID_MOVES = "no_valid_moves"
 ILLEGAL_MOVE_CHOSEN = "illegal_move_chosen"
@@ -153,6 +154,7 @@ class Env2048(gym.Env):
 
         info[INFO_KEY_TOTAL_SCORE] = self._grid.score
         info[INFO_KEY_MAX_TILE] = int(2 ** np.max(self._grid.tiles)) if np.max(self._grid.tiles) > 0 else 0
+        info[INFO_KEY_VALID_MOVES] = valid_moves
         return self._grid.tiles, reward, terminated, truncated, info
 
     def reset(self, seed: int | None = None, options: dict[str, Any] = None) -> tuple[ObsType, dict[str, Any]]:
@@ -167,7 +169,11 @@ class Env2048(gym.Env):
         for _ in range(2):
             self._grid.add_tile(log_val_tile=1)
 
-        info = {INFO_KEY_GRID_SEED: seed}
+        valid_moves = [mv.value for mv in self._grid.get_valid_moves()]
+        info = {
+            INFO_KEY_GRID_SEED: seed,
+            INFO_KEY_VALID_MOVES: valid_moves,
+        }
         return self._grid.tiles, info
 
     def render(self):
