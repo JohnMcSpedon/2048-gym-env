@@ -5,8 +5,6 @@ from typing import Any, SupportsFloat
 import gymnasium as gym
 import numpy as np
 from gymnasium.core import ActType, ObsType
-import numpy as np
-from PIL import Image, ImageDraw, ImageFont
 
 from . import logic
 
@@ -56,11 +54,21 @@ CELL_COLOR_DICT = {
     2048: hex_to_rgb("#f9f6f2"),
 }
 FONT_SIZE = 40
-try:
-    FONT = ImageFont.truetype("Verdana.ttf", FONT_SIZE)  # second value is font size
-except IOError:
-    print("loading verdana failed")
-    FONT = ImageFont.load_default()
+_FONT = None
+
+
+def _get_font():
+    """Load the render font on first use (PIL is only needed for image rendering)."""
+    global _FONT
+    if _FONT is None:
+        from PIL import ImageFont
+
+        try:
+            _FONT = ImageFont.truetype("Verdana.ttf", FONT_SIZE)  # second value is font size
+        except IOError:
+            logging.warning("loading verdana failed; falling back to default font")
+            _FONT = ImageFont.load_default()
+    return _FONT
 
 
 @dataclass
@@ -163,7 +171,9 @@ class Env2048(gym.Env):
             observation (object): the initial observation.
         """
         super().reset(seed=seed)
-        self._grid = logic.Grid()
+        # Thread the Gymnasium-seeded RNG into the grid so reset(seed=...) actually
+        # controls tile spawning (previously spawns used the global np.random).
+        self._grid = logic.Grid(rng=self.np_random)
         self.achieved_tiles = set()  # Reset achieved tiles
         # add 2 initial tiles
         for _ in range(2):
@@ -181,6 +191,8 @@ class Env2048(gym.Env):
             print(self._grid.tiles)
             print(f"score: {self._grid.score}")
         elif self.render_mode in ["human", "rgb_array"]:
+            from PIL import Image, ImageDraw
+
             tile_size = 100
             grid_size = tile_size * self._grid.tiles.shape[0]
             image = Image.new("RGB", (grid_size, grid_size), BACKGROUND_COLOR_GAME)
@@ -209,7 +221,7 @@ class Env2048(gym.Env):
                         text = str(number)
                         text_color = CELL_COLOR_DICT[number]
                         # Adjust font size based on number length
-                        text_length = draw.textlength(text, font=FONT)
+                        text_length = draw.textlength(text, font=_get_font())
                         text_x = x + (tile_size - text_length) / 2
                         text_y = y + (tile_size - FONT_SIZE) / 2
                         draw.text((text_x, text_y), text, fill=text_color)

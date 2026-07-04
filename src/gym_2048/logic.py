@@ -1,6 +1,6 @@
 import enum
 import logging
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 
 import numpy as np
 
@@ -93,10 +93,14 @@ class Grid:
     Empty tiles are represented with 0.  Otherwise a tiles value is stored as log base 2.
     """
 
-    def __init__(self):
+    def __init__(self, rng: Optional[np.random.Generator] = None):
         # TODO: accept tiles as an init argument.  factor above methods into this class?
         self.tiles = np.zeros([GRID_HEIGHT, GRID_WIDTH], dtype=np.uint8)
         self.score = 0
+        self._rng = rng if rng is not None else np.random.default_rng()
+        # Valid moves are expensive to compute (each candidate move is simulated),
+        # so cache them until the tiles change.
+        self._valid_moves_cache: Optional[List[Move]] = None
 
     def _replay_moves(self, moves):
         # TODO: add ability to replay game up to certain state?
@@ -106,21 +110,25 @@ class Grid:
         open_indices = np.argwhere(self.tiles == 0)
         num_open = len(open_indices)
         if num_open > 0:
-            sample_idx = np.random.choice(num_open)
+            sample_idx = self._rng.integers(num_open)
             if log_val_tile is None:
-                log_val_tile = 1 if np.random.random() <= TILE_SIZE_PROB else 2
+                log_val_tile = 1 if self._rng.random() <= TILE_SIZE_PROB else 2
             self.tiles[tuple(open_indices[sample_idx])] = log_val_tile  # convert to tuple for basic indexing
+            self._valid_moves_cache = None
             return True
         else:
             logging.debug("Game over")
             return False
 
     def get_valid_moves(self):
-        return _get_valid_moves(self.tiles)
+        if self._valid_moves_cache is None:
+            self._valid_moves_cache = _get_valid_moves(self.tiles)
+        return self._valid_moves_cache
 
     def apply_move(self, move):
         valid_moves = self.get_valid_moves()
         assert move in valid_moves, "Invalid move; {} is not in {}".format(move, valid_moves)
         self.tiles, delta_score = _apply_move(self.tiles, move)
         self.score += delta_score
+        self._valid_moves_cache = None
         return self.add_tile()
