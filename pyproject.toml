@@ -13,6 +13,7 @@ packages = [
 python = "^3.11"
 gymnasium = "^0.29.1"
 numpy = "^1.26.2"
+pillow = "^13.0.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^9.0.3"
