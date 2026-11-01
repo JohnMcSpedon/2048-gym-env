@@ -5,6 +5,8 @@ from typing import Any, SupportsFloat
 import gymnasium as gym
 import numpy as np
 from gymnasium.core import ActType, ObsType
+import numpy as np
+from PIL import Image, ImageDraw, ImageFont
 
 from . import logic
 
@@ -12,17 +14,65 @@ INFO_KEY_GRID_SEED = "grid_seed"
 INFO_KEY_GAME_OVER_REASON = "game_over_reason"
 INFO_KEY_DELTA_SCORE = "delta_score"
 INFO_KEY_TOTAL_SCORE = "total_score"
+INFO_KEY_MAX_TILE = "max_tile"
+INFO_KEY_VALID_MOVES = "valid_moves"
 
 NO_VALID_MOVES = "no_valid_moves"
 ILLEGAL_MOVE_CHOSEN = "illegal_move_chosen"
 
 
+def hex_to_rgb(hex_color):
+    """Convert hex color string to RGB tuple."""
+    hex_color = hex_color.lstrip("#")
+    return tuple(int(hex_color[i : i + 2], 16) for i in (0, 2, 4))
+
+
+BACKGROUND_COLOR_GAME = hex_to_rgb("#92877d")
+BACKGROUND_COLOR_CELL_EMPTY = hex_to_rgb("#9e948a")
+BACKGROUND_COLOR_DICT = {
+    2: hex_to_rgb("#eee4da"),
+    4: hex_to_rgb("#ede0c8"),
+    8: hex_to_rgb("#f2b179"),
+    16: hex_to_rgb("#f59563"),
+    32: hex_to_rgb("#f67c5f"),
+    64: hex_to_rgb("#f65e3b"),
+    128: hex_to_rgb("#edcf72"),
+    256: hex_to_rgb("#edcc61"),
+    512: hex_to_rgb("#edc850"),
+    1024: hex_to_rgb("#edc53f"),
+    2048: hex_to_rgb("#edc22e"),
+}
+CELL_COLOR_DICT = {
+    2: hex_to_rgb("#776e65"),
+    4: hex_to_rgb("#776e65"),
+    8: hex_to_rgb("#f9f6f2"),
+    16: hex_to_rgb("#f9f6f2"),
+    32: hex_to_rgb("#f9f6f2"),
+    64: hex_to_rgb("#f9f6f2"),
+    128: hex_to_rgb("#f9f6f2"),
+    256: hex_to_rgb("#f9f6f2"),
+    512: hex_to_rgb("#f9f6f2"),
+    1024: hex_to_rgb("#f9f6f2"),
+    2048: hex_to_rgb("#f9f6f2"),
+}
+FONT_SIZE = 40
+try:
+    FONT = ImageFont.truetype("Verdana.ttf", FONT_SIZE)  # second value is font size
+except IOError:
+    print("loading verdana failed")
+    FONT = ImageFont.load_default()
+
+
 @dataclass
 class RewardConfig:
-    lambda_step_reward: float = 1.0
+    lambda_step_reward: float = 0.0
     lambda_score_reward: float = 1.0
-    illegal_move_penalty: float = -10
-    game_over_penalty: float = -5
+    illegal_move_penalty: float = 0.0  # No penalty - let Q-learning handle it
+    game_over_penalty: float = 0.0
+    # Bonus rewards for achieving high tiles (scaled to game scores)
+    tile_bonus_512: float = 1000.0   # ~20% of typical score at 512
+    tile_bonus_1024: float = 5000.0  # ~25% of typical score at 1024
+    tile_bonus_2048: float = 20000.0 # ~100% of typical score at 2048
 
 
 class Env2048(gym.Env):
@@ -32,20 +82,19 @@ class Env2048(gym.Env):
         observation_space: The Space object corresponding to valid observations
         reward_range: A tuple corresponding to the min and max possible rewards
     """
-    metadata = {"render.modes": ["ansi"]}  # TODO: implement rgb_array, human
+    metadata = {"render_modes": ["ansi", "human", "rgb_array"], "render_fps": 4}
     reward_range = (-float("inf"), float("inf"))  # TODO: narrow this range?
 
     action_space = gym.spaces.Discrete(4)  # up, down, left, right
-    observation_space = gym.spaces.Space(shape=[4, 4], dtype=np.uint8)
+    observation_space = gym.spaces.Box(low=0, high=17, shape=(4, 4), dtype=np.uint8)
 
-    def __init__(self, render_mode: str, reward_config: RewardConfig = None):
+    def __init__(self, reward_config: RewardConfig = None, render_mode: str = None):
         super(Env2048, self).__init__()
         if reward_config is None:
             reward_config = RewardConfig()
         self.reward_cfg = reward_config
-        if render_mode != "ansi":
-            raise NotImplementedError(f"Haven't implemented render mode {render_mode}")
         self.render_mode = render_mode
+        self.achieved_tiles = set()  # Track tiles achieved this episode
         self.reset()
 
     def step(self, action: ActType) -> tuple[ObsType, SupportsFloat, bool, bool, dict[str, Any]]:
@@ -74,16 +123,29 @@ class Env2048(gym.Env):
             terminated = True
             info[INFO_KEY_GAME_OVER_REASON] = NO_VALID_MOVES
         elif action not in valid_moves:
-            # NOTE: choosing to end the game when an illegal move is taken
+            # Illegal move - no state change, small negative reward
             reward = self.reward_cfg.illegal_move_penalty
             terminated = False
             info[INFO_KEY_GAME_OVER_REASON] = ILLEGAL_MOVE_CHOSEN
+            info[INFO_KEY_DELTA_SCORE] = 0
         else:
             prev_score = self._grid.score
             self._grid.apply_move(logic.Move(action))
             delta_score = self._grid.score - prev_score
             reward = self.reward_cfg.lambda_step_reward + self.reward_cfg.lambda_score_reward * delta_score
             info[INFO_KEY_DELTA_SCORE] = delta_score
+
+            # Check for new high tiles and give bonuses
+            max_tile = np.max(self._grid.tiles)
+            if max_tile >= 9 and max_tile not in self.achieved_tiles:  # 9 = log2(512)
+                self.achieved_tiles.add(max_tile)
+                if max_tile == 9:  # 512
+                    reward += self.reward_cfg.tile_bonus_512
+                elif max_tile == 10:  # 1024
+                    reward += self.reward_cfg.tile_bonus_1024
+                elif max_tile == 11:  # 2048
+                    reward += self.reward_cfg.tile_bonus_2048
+
             terminated = False
 
         valid_moves = [mv.value for mv in self._grid.get_valid_moves()]
@@ -93,6 +155,8 @@ class Env2048(gym.Env):
             info[INFO_KEY_GAME_OVER_REASON] = NO_VALID_MOVES
 
         info[INFO_KEY_TOTAL_SCORE] = self._grid.score
+        info[INFO_KEY_MAX_TILE] = int(2 ** np.max(self._grid.tiles)) if np.max(self._grid.tiles) > 0 else 0
+        info[INFO_KEY_VALID_MOVES] = valid_moves
         return self._grid.tiles, reward, terminated, truncated, info
 
     def reset(self, seed: int | None = None, options: dict[str, Any] = None) -> tuple[ObsType, dict[str, Any]]:
@@ -102,39 +166,58 @@ class Env2048(gym.Env):
         """
         super().reset(seed=seed)
         self._grid = logic.Grid()
+        self.achieved_tiles = set()  # Reset achieved tiles
         # add 2 initial tiles
         for _ in range(2):
             self._grid.add_tile(log_val_tile=1)
 
-        info = {}
+        valid_moves = [mv.value for mv in self._grid.get_valid_moves()]
+        info = {INFO_KEY_VALID_MOVES: valid_moves}
         if seed is not None:
             info[INFO_KEY_GRID_SEED] = seed
         return self._grid.tiles, info
 
     def render(self):
-        """Renders the environment.
-        The set of supported modes varies per environment. (And some
-        environments do not support rendering at all.) By convention,
-        if mode is:
-        - human: render to the current display or terminal and
-          return nothing. Usually for human consumption.
-        - rgb_array: Return an numpy.ndarray with shape (x, y, 3),
-          representing RGB values for an x-by-y pixel image, suitable
-          for turning into a video.
-        - ansi: Return a string (str) or StringIO.StringIO containing a
-          terminal-style text representation. The text can include newlines
-          and ANSI escape sequences (e.g. for colors).
-            metadata = {'render.modes': ['human', 'rgb_array']}
-            def render(self, mode='human'):
-                if mode == 'rgb_array':
-                    return np.array(...) # return RGB frame suitable for video
-                elif mode == 'human':
-                    ... # pop up a window and render
-                else:
-                    super(MyEnv, self).render(mode=mode) # just raise an exception
-        """
         if self.render_mode == "ansi":
             print(self._grid.tiles)
             print(f"score: {self._grid.score}")
+        elif self.render_mode in ["human", "rgb_array"]:
+            tile_size = 100
+            grid_size = tile_size * self._grid.tiles.shape[0]
+            image = Image.new("RGB", (grid_size, grid_size), BACKGROUND_COLOR_GAME)
+            draw = ImageDraw.Draw(image)
+
+            for i in range(self._grid.tiles.shape[0]):
+                for j in range(self._grid.tiles.shape[1]):
+                    value = self._grid.tiles[i][j]
+                    x = j * tile_size
+                    y = i * tile_size
+                    rect = [x + 5, y + 5, x + tile_size - 5, y + tile_size - 5]
+
+                    # Get tile background color
+                    if value == 0:
+                        color = BACKGROUND_COLOR_CELL_EMPTY
+                    else:
+                        number = 2 ** value
+                        color = BACKGROUND_COLOR_DICT.get(number, "#3c3a32")
+
+                    # Draw tile
+                    draw.rectangle(rect, fill=color, outline=BACKGROUND_COLOR_GAME)
+
+                    # Draw number
+                    if value != 0:
+                        number = 2 ** value
+                        text = str(number)
+                        text_color = CELL_COLOR_DICT[number]
+                        # Adjust font size based on number length
+                        text_length = draw.textlength(text, font=FONT)
+                        text_x = x + (tile_size - text_length) / 2
+                        text_y = y + (tile_size - FONT_SIZE) / 2
+                        draw.text((text_x, text_y), text, fill=text_color)
+
+            if self.render_mode == "human":
+                image.show()
+            else:
+                return np.array(image)
         else:
             super(Env2048, self).render()
